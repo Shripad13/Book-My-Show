@@ -37,21 +37,26 @@ pipeline {
                 }
             }
         }
-        stage('Install Dependencies') {
-            steps {
-                sh '''
-                cd bookmyshow-app
-                ls -la  # Verify package.json exists
-                if [ -f package.json ]; then
-                    rm -rf node_modules package-lock.json  # Remove old dependencies
-                    npm install  # Install fresh dependencies
-                else
-                    echo "Error: package.json not found in bookmyshow-app!"
-                    exit 1
-                fi
-                '''
-            }
-        }
+stage('Install Dependencies') {
+    steps {
+        sh '''
+        cd bookmyshow-app
+        if [ -f package.json ]; then
+            # Remove both old modules AND the out-of-sync lockfile
+            rm -rf node_modules package-lock.json  
+            
+            # Restrict Node's memory footprint
+            export NODE_OPTIONS="--max-old-space-size=1024"
+            
+            # Install fresh dependencies using low-resource flags
+            npm install --no-audit --no-fund --loglevel=error
+        else
+            echo "Error: package.json not found in bookmyshow-app!"
+            exit 1
+        fi
+        '''
+    }
+}
         stage('OWASP FS Scan') {
             steps {
                 dependencyCheck additionalArguments: '--scan ./ --disableYarnAudit --disableNodeAudit', odcInstallation: 'DP-Check'
